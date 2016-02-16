@@ -23,7 +23,7 @@ library("openxlsx")
 library("plotly")
 library("xts")
 library("openair")
-
+library("Cairo" ) ## pour exporter correctement les graphs
 
 #theme_set(theme_gray())
 
@@ -89,6 +89,10 @@ seq1<-seq(from = 1, to = n, by=2)
 for (i in  seq1)
   ifelse(is.na(reserve_2015[[i]]),print("NA"),
   reserve_2015[[i]] <- as.POSIXct(reserve_2015[[i]], format="%d/%m/%Y %H:%M",tz="GMT"))
+
+
+
+
 
 ## Création de la matrice temporelle de référence -------
 
@@ -187,7 +191,7 @@ for (i in 1:n){
 
 ### application de filtre de base
 conductivite_max <- 2000
-conductivite_min <- 0
+conductivite_min <- 10
 
 oxygene_max <- 20
 oxygene_min <- 0.1
@@ -317,45 +321,366 @@ reserve_2015_xts <-xts(thil_2015_vf[,-c(1)], order.by = reserve_2015_vf$date)
 
 ###################################
 ######## Vision globale
-
-
 #### synthèse métrologique
 
 
 ### vision globale des donnés acquises
-############p-e découper le jeu de données avant le traitement pour plus de visibilité
-#x11()
-#summaryPlot(reserve_vf,
-#            col.mis = "gray",
-#            col.data ="darkolivegreen2",
-#            col.hist = "black",
-#            type = "density",
-#            period = "years")
 
-#x11()
-#summaryPlot(thil_2015_vf,
-#            col.mis = "gray",
-#            col.data ="darkolivegreen2",
-#            col.hist = "black",
-#            type = "density",
-#            period = "years")
+x11()
+summaryPlot(reserve_vf,
+            col.mis = "gray",
+            col.data ="darkolivegreen2",
+            col.hist = "black",
+            type = "density",
+            period = "years")
 
 
+############découpage du jeu de données avant le traitement pour plus de visibilité
+## Thil
 
-#variaton de paramètres
+n<- length(param)
+for (i in 1:n){
+  x11()
+  eval(parse(text=paste0("summaryPlot(thil_2015_",param[i],"[,-c(2)],
+              col.mis = \"gray\",
+              col.trend =\"#208CFF\",
+              col.data =\"#208CFF\",
+              col.hist=\"#208CFF\",
+              ylab = c(\"Thil_",param[i],"\", \"Pourcentage du total\"), 
+              xlab = c(\"Date\", \"répartition des valeurs\"), 
+              lwd=3,
+              cex=12
+  )")))
+}
 
+## Reserve
 
-### plus de sens si toutes les années sont aggrégées
+n<- length(param)
+for (i in 1:n){
+  x11()
+  eval(parse(text=paste0("summaryPlot(reserve_2015_",param[i],"[,-c(2)],
+                         col.mis = \"gray\",
+                         col.trend =\"#0DB219\",
+                         col.data =\"#0DB219\",
+                         col.hist =\"#0DB219\",
+                         ylab = c(\"Reserve_",param[i],"\", \"Pourcentage du total\"), 
+                         xlab = c(\"Date\", \"répartition des valeurs\"), 
+                         lwd=3,
+                         cex=12
+                         )")))
+}
+
+#######################################################################################################################
+################################################## synthèse hydrologique###############################################
+    ### plus de sens si toutes les années sont aggrégées
 
 
 ## param physiques
- ####pas super pertinent
 
-#x11()
-#timeVariation(thil_vf, 
-#              pollutant = c("temp_eau", "temp_air","haut_eau"),
-#              normalise = F
-#)
+## conductivité
+##timePlot(thil_vf, pollutant = "conductivite") ##moche
+
+
+thil_cond<- ggplot(thil_vf, 
+                    aes(x=date, y=conductivite)) +
+                    ylim(0, 750)+  
+                    geom_point(colour ="#208CFF",
+                               size = 1, alpha=0.5)      
+
+reserve_cond<- ggplot(reserve_vf, 
+                   aes(x=date, y=conductivite)) +
+                   ylim(0, 750)+  
+                   geom_point(colour ="#0DB219",
+                              size = 1, alpha =0.5)      
+x11() 
+plot_grid(thil_cond,
+          reserve_cond,
+          nrow=2, align = "v")
+
+
+x11()
+smoothTrend(thil_vf, ### pas le plus pertinent pour ce paramètre (on veut montrer des variation brutales)
+            deseason =TRUE,
+            pollutant = "conductivite",
+            ylab = "conductivité",
+            xlab = "",
+            cols = "#208CFF",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+
+x11()
+smoothTrend(reserve_vf, ### pas le plus pertinent pour ce paramètre (on veut montrer des variation brutales)
+            deseason =TRUE,
+            pollutant = "conductivite",
+            ylab = "conductivité",
+            xlab = "",
+            cols = "#0DB219",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+
+x11()
+timeVariation(thil_vf, 
+              pollutant = c("conductivite"),
+              cols =  "#208CFF",
+              normalise = F)
+
+x11()
+timeVariation(reserve_vf, 
+              pollutant = c("conductivite"),
+              cols =  "#0DB219",
+              normalise = F)
+
+
+
+#plot_grid(a,b, nrow=2, align = "v")
+
+
+### turbidité
+
+
+thil_turbi <- ggplot(thil_vf, 
+                aes(x=date, y=turbidite)) +
+                ylim(0, 500)+  
+                geom_point(colour ="#208CFF",
+                           size = 1, alpha= 0.5) 
+
+reserve_turbi <-ggplot(reserve_vf, 
+                 aes(x=date, y=turbidite)) +
+                 ylim(0, 500)+  
+                 geom_point(colour ="#0DB219",
+                              size = 1, alpha= 0.5)
+
+
+x11()
+plot_grid(thil_turbi,
+          reserve_turbi,
+          nrow=2, align = "v")
+
+##smoothtrend et time variation n'ont pas bcp de sens pour la turbitdité
+
+## potentiel rédox
+
+
+thil_redox <- ggplot(thil_vf, 
+                 aes(x=date, y=redox)) +
+                 ylim(0, 600)+  
+                 geom_point(colour ="#208CFF",
+                            size = 1, alpha=0.5)      
+reserve_redox <- ggplot(reserve_vf, 
+                     aes(x=date, y=redox)) +
+                     ylim(0, 600)+  
+                     geom_point(colour ="#0DB219",
+                     size = 1, alpha=0.5)    
+x11()
+plot_grid(thil_redox,
+          reserve_redox,
+          nrow=2, align = "v")
+
+x11()
+smoothTrend(thil_vf, 
+            deseason =TRUE,
+            pollutant = "redox",
+            ylab = "redox",
+            xlab = "",
+            cols = "#208CFF",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+x11()
+smoothTrend(reserve_vf, 
+            deseason =TRUE,
+            pollutant = "redox",
+            ylab = "redox",
+            xlab = "",
+            cols = "#0DB219",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+
+### pH
+##timePlot(thil_vf, pollutant = "turbidite") ##moche
+
+thil_pH <- ggplot(thil_vf, 
+                aes(x=date, y=pH)) +
+                ylim(6,9)+  
+                geom_point(colour ="#208CFF",alpha = 0.5,
+                size = 1)      
+    
+
+reserve_pH <- ggplot(reserve_vf, 
+                  aes(x=date, y=pH)) +
+                  ylim(6, 9)+  
+                  geom_point(colour ="#0DB219",alpha = 0.5,
+                   size = 1)      
+
+x11()
+plot_grid(thil_pH,
+          reserve_pH,
+          nrow=2, align = "v")
+
+
+x11()
+smoothTrend(thil_vf, 
+            deseason =TRUE,
+            pollutant = "pH",
+            ylab = "pH",
+            xlab = "",
+            cols = "#208CFF",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+x11()
+smoothTrend(reserve_vf, 
+            deseason =TRUE,
+            pollutant = "pH",
+            ylab = "pH",
+            xlab = "",
+            cols = "#0DB219",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+
+
+x11()
+timeVariation(thil_vf, 
+              pollutant = c("pH"),
+              cols =  "#208CFF",
+              normalise = F)
+x11()
+timeVariation(reserve_vf, 
+              pollutant = c("pH"),
+              cols =  "#0DB219",
+              normalise = F)
+
+
+#### oxygene
+
+
+thil_oxy <-ggplot(thil_vf, 
+       aes(x=date, y=oxygene)) +
+  #ylim(0, 500)+  
+  geom_point(colour ="#208CFF",alpha = 0.5,
+             size = 1)    
+
+
+
+reserve_oxy <-ggplot(reserve_vf, 
+                  aes(x=date, y=oxygene)) +
+                  #ylim(0, 500)+  
+                  geom_point(colour ="#0DB219",alpha = 0.5,
+                  size = 1)    
+
+x11()
+plot_grid(thil_oxy,
+          reserve_oxy,
+          nrow=2, align = "v")
+
+
+
+x11()
+smoothTrend(thil_vf, 
+            deseason =TRUE,
+            pollutant = "oxygene",
+            ylab = "oxygene",
+            xlab = "",
+            cols = "#208CFF",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+
+x11()
+smoothTrend(reserve_vf, 
+            deseason =TRUE,
+            pollutant = "oxygene",
+            ylab = "oxygene",
+            xlab = "",
+            cols = "#0DB219",
+            ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
+            ci = TRUE,
+            date.breaks = 20,
+            main = "")
+
+x11()
+timeVariation(thil_vf, 
+              pollutant = c("oxygene"),
+              cols =  "#208CFF",
+              normalise = F)
+
+x11()
+timeVariation(reserve_vf, 
+              pollutant = c("oxygene"),
+              cols =  "#0DB219",
+              normalise = F)
+
+
+x11()
+timeVariation(thil_vf, 
+              pollutant = c("oxygene", "pH"),
+              normalise = T
+)
+
+
+
+x11()
+timeVariation(reserve_vf, 
+              pollutant = c("oxygene", "pH"),
+              normalise = T
+)
+
+
+
+x11()
+scatterPlot(thil_vf, x = "temp_eau", y = "oxygene", z = "temp_air", 
+            type = c("season"))
+
+x11()
+scatterPlot(reserve_vf, x = "temp_eau", y = "oxygene", z = "temp_air", 
+            type = c("season"))
+
+
+
+x11()
+trendLevel(thil_vf, y = "hour", pollutant = "oxygene")
+
+x11()
+trendLevel(reserve_vf, y = "hour", pollutant = "oxygene")
+
+
+
+
+
+
+
+
+
+
+
+
+
+x11()
+scatterPlot(thil_vf, x = "pH", y = "oxygene", method = "density",
+            type = c("season"),
+            col= "jet") 
+
+x11()
+scatterPlot(reserve_vf, x = "pH", y = "oxygene", method = "density",
+            type = c("season"),
+            col= "jet") 
 
 
 ## pression phy
@@ -380,11 +705,7 @@ reserve_2015_xts <-xts(thil_2015_vf[,-c(1)], order.by = reserve_2015_vf$date)
 #)
 
 
-x11()
-timeVariation(thil_vf, 
-              pollutant = c("conductivite"),
-              normalise = F
-)
+
 
 
 x11()
@@ -395,9 +716,6 @@ scatterPlot(reserve_vf, x = "temp_eau", y = "oxygene", method = "density",
 
 
 
-x11()
-scatterPlot(thil_vf, x = "temp_eau", y = "oxygene", z = "temp_air", 
-            type = c("season"))
 
 
 x11()
@@ -422,10 +740,7 @@ calendarPlot(reserve_2015_vf,
 
 
 
-x11()
-trendLevel(reserve_vf, y = "hour", pollutant = "oxygene")
-x11()
-trendLevel(thil_vf, y = "hour", pollutant = "oxygene")
+
 
 
 
