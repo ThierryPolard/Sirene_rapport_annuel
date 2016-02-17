@@ -24,6 +24,7 @@ library("plotly")
 library("xts")
 library("openair")
 library("Cairo" ) ## pour exporter correctement les graphs
+library("reshape2")
 
 #theme_set(theme_gray())
 
@@ -53,6 +54,20 @@ reserve_2014<- read.xlsx("reserve_2014.xlsx", sheet = 1, startRow = 1, colNames 
 reserve_2015<- read.xlsx("reserve_2015.xlsx", sheet = 1, startRow = 1, colNames = TRUE, 
                       rowNames = FALSE, detectDates = F, skipEmptyRows = FALSE,
                       rows = NULL, cols = NULL, check.names = FALSE, namedRegion = NULL)
+
+### import des données externes (pluviométrie et déversements)
+pluieEtDeversements<- read.xlsx("pluieEtDeversements.xlsx", sheet = 1, startRow = 1, colNames = TRUE, 
+                         rowNames = FALSE, detectDates = T, skipEmptyRows = FALSE,
+                         rows = NULL, cols = NULL, check.names = FALSE, namedRegion = NULL)
+
+#bricolga foireux pour avoir mes dates au bon format... a corriger
+#Création du vecteur "temps"
+debut <- as.POSIXct(strptime("01/01/2014 00:00:00",  format="%d/%m/%Y %H:%M",tz="GMT"))
+fin <- as.POSIXct(strptime("29/09/2015 00:00:00",  format="%d/%m/%Y %H:%M",tz="GMT"))
+date<-seq(debut,fin,by=24*60*60)
+
+pluieEtDeversements <-cbind(date,pluieEtDeversements[-1])
+
 
 
 #fusion données 2014 et 2015 #####a voi si c'est une bonne idée..
@@ -374,6 +389,52 @@ for (i in 1:n){
 ################################################## synthèse hydrologique###############################################
     ### plus de sens si toutes les années sont aggrégées
 
+## représentation de la pluvio sur la période considéré (calage sur le calendrier des sirene)
+n <- length(thil_vf$date)
+debut <-thil_vf$date[1]
+fin <-thil_vf$date[n]
+
+P_pluie<- ggplot() +
+  geom_bar(data=pluieEtDeversements, aes(date, Pluie), stat="identity", colour = "blue", fill="blue")+ 
+  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
+         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"),
+         axis.text.x=element_blank())+
+  xlab(NULL) + ylab("")+
+  xlim(c(debut, fin))+
+  scale_y_reverse()
+
+## représentation des déversement (empilé)
+##modification du format du tableaui
+meltdf <- melt(pluieEtDeversements[-c(2,3,4,11, 12,13, 15, 16)],id="date")
+P_dev <- ggplot(data = meltdf, aes(x = date, y = value, colour=variable, fill = variable)) + 
+  geom_bar(stat='identity')+ 
+  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
+         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"))+
+  xlab(NULL) + ylab("")+
+  theme(legend.title=element_blank(), 
+        legend.position = c(.9, .4),
+        axis.text.x=element_blank())+
+  xlim(c(debut, fin))
+
+meltdf <- melt(pluieEtDeversements[c(1, 15, 16)],id="date")
+P_STEP <- ggplot(data = meltdf, aes(x = date, y = value, colour=variable, fill = variable)) + 
+  geom_bar(stat='identity')+ 
+  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
+         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"))+
+  xlab(NULL) + ylab("")+
+  theme(legend.title=element_blank(), 
+        legend.position = c(.9, .4))+
+  xlim(c(debut, fin))
+
+x11()
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          nrow=3, align = "v")
+
+
+
+colnames(pluieEtDeversements)
 
 ## param physiques
 
@@ -393,9 +454,12 @@ reserve_cond<- ggplot(reserve_vf,
                    geom_point(colour ="#0DB219",
                               size = 1, alpha =0.5)      
 x11() 
-plot_grid(thil_cond,
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          thil_cond,
           reserve_cond,
-          nrow=2, align = "v")
+          nrow=5, align = "v")
 
 
 x11()
@@ -458,9 +522,12 @@ reserve_turbi <-ggplot(reserve_vf,
 
 
 x11()
-plot_grid(thil_turbi,
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          thil_turbi,
           reserve_turbi,
-          nrow=2, align = "v")
+          nrow=5, align = "v")
 
 ##smoothtrend et time variation n'ont pas bcp de sens pour la turbitdité
 
@@ -478,9 +545,12 @@ reserve_redox <- ggplot(reserve_vf,
                      geom_point(colour ="#0DB219",
                      size = 1, alpha=0.5)    
 x11()
-plot_grid(thil_redox,
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          thil_redox,
           reserve_redox,
-          nrow=2, align = "v")
+          nrow=5, align = "v")
 
 x11()
 smoothTrend(thil_vf, 
@@ -524,9 +594,12 @@ reserve_pH <- ggplot(reserve_vf,
                    size = 1)      
 
 x11()
-plot_grid(thil_pH,
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          thil_pH,
           reserve_pH,
-          nrow=2, align = "v")
+          nrow=5, align = "v")
 
 
 x11()
@@ -584,9 +657,12 @@ reserve_oxy <-ggplot(reserve_vf,
                   size = 1)    
 
 x11()
-plot_grid(thil_oxy,
+plot_grid(P_pluie, 
+          P_dev,
+          P_STEP,
+          thil_oxy,
           reserve_oxy,
-          nrow=2, align = "v")
+          nrow=5, align = "v")
 
 
 
@@ -662,73 +738,9 @@ trendLevel(reserve_vf, y = "hour", pollutant = "oxygene")
 
 
 
-
-
-
-
-
-
-
-
-
-
-x11()
-scatterPlot(thil_vf, x = "pH", y = "oxygene", method = "density",
-            type = c("season"),
-            col= "jet") 
-
-x11()
-scatterPlot(reserve_vf, x = "pH", y = "oxygene", method = "density",
-            type = c("season"),
-            col= "jet") 
-
-
-## pression phy
-#x11()
-#timeVariation(reserve_vf, 
-#              pollutant = c("conductivite"),
-#              normalise = F
-#)
-
-
-#x11()
-#timeVariation(thil_vf, 
-#              pollutant = c("conductivite"),
-#              normalise = F
-#)
-
-## fonction bio
-#x11()
-#timeVariation(reserve_vf, 
-#              pollutant = c("oxygene", "oxygene_pc","pH"),
-#              normalise = F
-#)
-
-
-
-
-
-x11()
-scatterPlot(reserve_vf, x = "temp_eau", y = "oxygene", method = "density", 
-            col= "jet") 
-
-
-
-
-
-
-
-x11()
-scatterPlot(test, x = "temp_eau", y = "oxygene", z = "temp_air", 
-            type = c("season"))
-
-
-test <-rbind(thil_vf,reserve_vf)
-
-
 #calendrar plot
 x11()
-calendarPlot(reserve_2015_vf, 
+calendarPlot(thil_2015_vf, 
              pollutant = c("oxygene"), 
              year = 2015, 
              cols = c("red", " orange", "blue"), 
@@ -737,15 +749,3 @@ calendarPlot(reserve_2015_vf,
              breaks = c(0, 3, 5, 100),###valeurs indicatives, à modifie/argmenter
              labels = c("Médiocre", "Moyen","Bon")
 ) 
-
-
-
-
-
-
-
-
-
-trendLevel(thil_vf, x = "season", y = "hour", pollutant = "oxygene",
-           cols = "increment")
-
