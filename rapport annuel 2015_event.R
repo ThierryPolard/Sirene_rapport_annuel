@@ -131,8 +131,9 @@ for (i in 1:n){
   for (j in 1:m){
     eval(parse(text=paste0("",sites[i],"_",annees[j],"_event_cond <- ",sites[i],"_",annees[j],"_event_cond_full[,c(1,4, ## données de base
                            10,11,12, ## signaux 
-                           13,14)]")))
+                           13,14,15)]")))
     eval(parse(text=paste0("",sites[i],"_",annees[j],"_event_cond[,7] <- as.factor(",sites[i],"_",annees[j],"_event_cond[,7])"))) 
+    eval(parse(text=paste0("",sites[i],"_",annees[j],"_event_cond[,8] <- as.factor(",sites[i],"_",annees[j],"_event_cond[,8])"))) 
   }
 }
 
@@ -242,9 +243,14 @@ daterange_2014<- list(T1=c(debut_T1_2014,fin_T1_2014),
                       T4=c(debut_T4_2014,fin_T4_2014)
 )
 
+
+
+#################### confrontation avec les données d'évenement idendfiées dans les rapports
+
+
 ####### oxygene (création des graphs)
 
-## fonction graph Amplitude
+## fonction graph Amplitude ##??? avec intensité de valeur
 graph_T_amp <- function(site,annee,param){
     n <- 4 ## nombr de trimestre dans chaque année
   x11()
@@ -269,12 +275,39 @@ graph_T_amp <- function(site,annee,param){
 }
 
 
+## fonction graph Amplitude ##??? avec classe de valeur
+graph_T_amp <- function(site,annee,param){
+  n <- 4 ## nombr de trimestre dans chaque année
+  x11()
+  for (i in 1:n){
+    event <- eval(parse(text=paste0("viz_event_",site,"")))
+    eval(parse(text=paste0("p_T",i," <- ggplot() + 
+                           geom_line (data = ",site,"_",annee,"_event_",param,", 
+                           aes(x = date, y = filtre),
+                           colour=col_",site,",size = 1, alpha =0.5) +
+                           ",event," +
+                           geom_point(data = ",site,"_",annee,"_event_",param,",
+                           aes(x = date, y =Signale_amplitude,colour=classes_alerte_amplitude),size=3)+
+                           scale_colour_manual(name =\"baisse de\nl'amplitude journaliere\", values = c(\"orange\",\"red\")) +
+                           scale_alpha_manual(values=c(0.1, 0.5,),guide=F) +
+                           theme(axis.title.x = element_blank()) + 
+                           ylab(\"\")  +
+                           xlim(daterange_",annee,"$T",i,") ")
+                           ))
+  }
+  liste_temp <- paste0("p_T",paste0(1:n))
+  liste_graph <-paste(liste_temp,collapse=",")
+  eval(parse(text=paste0("plot_grid(",liste_graph,", nrow=",n,", align = \"v\")")))
+  }
+
+
+
 ## exemple
 graph_T_amp("reserve", "2015", "ox")
 graph_T_amp("thil", "2015", "ox")
 
 
-## fonction graph niveau Max
+## fonction graph niveau Max ## graph avec intensité de valeur
 graph_T_max <- function(site,annee,param){
   n <- 4 ## nombr de trimestre dans chaque année
   x11()
@@ -299,6 +332,35 @@ graph_T_max <- function(site,annee,param){
   eval(parse(text=paste0("plot_grid(",liste_graph,", nrow=",n,", align = \"v\")")))
 }
 
+
+########### ## graph avec classes de valeur
+graph_T_max <- function(site,annee,param){
+  n <- 4 ## nombr de trimestre dans chaque année
+  x11()
+  for (i in 1:n){
+    event <- eval(parse(text=paste0("viz_event_",site,"")))
+    eval(parse(text=paste0("p_T",i," <- ggplot() + 
+                           geom_line (data = ",site,"_",annee,"_event_",param,", 
+                           aes(x = date, y = filtre),
+                           colour=col_",site,",size = 1, alpha =0.5) +
+                           ",event," +
+                           geom_point(data = ",site,"_",annee,"_event_",param,",
+                           aes(x = date, y =Signale_niveau,colour=classes_alerte_niveau),
+                           size=3)+
+                           scale_colour_manual(name =\"baisse du\nmaximum journalier\", values = c(\"orange\",\"red\")) +
+                           scale_alpha_manual(values=c(0.1, 0.5,),guide=F) +
+                           theme(axis.title.x = element_blank()) + 
+                           ylab(\"\")  +
+                           xlim(daterange_",annee,"$T",i,") ")
+                           ))
+  }
+  liste_temp <- paste0("p_T",paste0(1:n))
+  liste_graph <-paste(liste_temp,collapse=",")
+  eval(parse(text=paste0("plot_grid(",liste_graph,", nrow=",n,", align = \"v\")")))
+  }
+
+
+###########
 
 
 ## exemple
@@ -333,6 +395,41 @@ graph_T_cond <- function(site,annee,param){
   eval(parse(text=paste0("plot_grid(",liste_graph,", nrow=",n,", align = \"v\")")))
   }
 
+###??? 
+#######. graph par classe
+graph_T_cond <- function(site,annee,param){
+  n <- 4 ## nombr de trimestre dans chaque année
+  x11()
+  for (i in 1:n){
+    event <- eval(parse(text=paste0("viz_event_",site,"")))
+    eval(parse(text=paste0("p_T",i," <- ggplot() + 
+                           geom_line (data = ",site,"_",annee,"_event_",param,", 
+                           aes(x = date, y = non_signalees),
+                           colour=col_",site,",size = 1, alpha =0.5) +
+                           ",event," +
+                           geom_point(data = ",site,"_",annee,"_event_",param,", aes(x = date, y =signal_precoce), size=2)+
+                           geom_point(data = ",site,"_",annee,"_event_",param,", aes(x = date, y =signal_avere,colour=classes_alerte_precoce), size=3)+
+                           scale_colour_manual(name =\"baisse de la\nconductivité\", values = c(\"yellow\",\"orange\",\"red\")) +
+                           scale_alpha_manual(values=c(0.1, 0.5,),guide=F) +
+                           theme(axis.title.x = element_blank()) + 
+                           ylab(\"\")  +
+                           xlim(daterange_",annee,"$T",i,") ")
+                           ))
+  }
+  liste_temp <- paste0("p_T",paste0(1:n))
+  liste_graph <-paste(liste_temp,collapse=",")
+  eval(parse(text=paste0("plot_grid(",liste_graph,", nrow=",n,", align = \"v\")")))
+  }
+
 ## exemple
 graph_T_cond("thil", "2015", "cond")
-graph_T_cond("reserve", "2015", "cond")
+graph_T_cond("reserve", "2014", "cond")
+graph_T_cond("thil", "2014", "cond")
+
+
+
+
+
+
+
+
