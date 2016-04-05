@@ -63,7 +63,6 @@ reserve_2015<- read.xlsx("reserve_2015.xlsx", sheet = 1, startRow = 1, colNames 
                       rowNames = FALSE, detectDates = F, skipEmptyRows = FALSE,
                       rows = NULL, cols = NULL, check.names = FALSE, namedRegion = NULL)
 
-
 cantinolle_2015<- read.xlsx("cantinolle_2015.xlsx", sheet = 1, startRow = 1, colNames = TRUE, 
                          rowNames = FALSE, detectDates = F, skipEmptyRows = FALSE,
                          rows = NULL, cols = NULL, check.names = FALSE, namedRegion = NULL)
@@ -203,9 +202,6 @@ for (i in 1:n){
   eval(parse(text=paste0("names(cantinolle_2015_",param[i],")<-c(\"date\",\"",param[i],"\")")))
 }
 
-
-
-
 #  fusion de chaque sous-tableau avec la matrice de réference(pourles caler sur le mm pas de temps) 
 
 ##Thil
@@ -242,8 +238,6 @@ for (i in 1:n){
   eval(parse(text=paste0("cantinolle_2015_",param[i]," <- merge(date_2015, cantinolle_2015_",param[i],", by=\"date\", all.x=T)")))
   eval(parse(text=paste0("cantinolle_2015_",param[i]," <- cantinolle_2015_",param[i],"[!is.na(cantinolle_2015_",param[i],"$",param[i],"),]")))
 }
-
-
 
 
 ### application de filtre de base
@@ -381,156 +375,90 @@ cantinolle_2015_vf<- merge(cantinolle_2015_vf, subset(cantinolle_2015_temp_eau, 
 cantinolle_2015_vf<- merge(cantinolle_2015_vf, subset(cantinolle_2015_turbidite, select = - c(indice)), by="date", all.x=T)
 
 
-
-
-
-
-
-
 ##agrégation des deux années si besoin
 reserve_vf <- rbind(reserve_2014_vf,reserve_2015_vf)
 thil_vf <- rbind(thil_2014_vf,thil_2015_vf)
+cantinolle_vf <- rbind(cantinolle_2015_vf)
 
 
 thil_2014_xts <-xts(thil_2014_vf[,-c(1)], order.by =thil_2014_vf$date)
 thil_2015_xts <-xts(thil_2015_vf[,-c(1)], order.by =thil_2015_vf$date)
+
 reserve_2014_xts <-xts(thil_2014_vf[,-c(1)], order.by = reserve_2014_vf$date)
 reserve_2015_xts <-xts(thil_2015_vf[,-c(1)], order.by = reserve_2015_vf$date)
 
+cantinolle_2015_xts <-xts(thil_2015_vf[,-c(1)], order.by = cantinolle_2015_vf$date)
 
 
-
-###################################
-######## Vision globale
-#### synthèse métrologique
-
-
-### vision globale des donnés acquises
-x11()
-summaryPlot(cantinolle_2015_vf,
-            col.mis = "gray",
-            col.data ="darkolivegreen2",
-            col.hist = "black",
-            type = "density",
-            period = "years")
-
-
-############découpage du jeu de données avant le traitement pour plus de visibilité
-## Thil
-
-n<- length(param)
-for (i in 1:n){
-  x11()
-  eval(parse(text=paste0("summaryPlot(thil_2015_",param[i],"[,-c(2)],
-              col.mis = \"gray\",
-              col.trend =\"#208CFF\",
-              col.data =\"#208CFF\",
-              col.hist=\"#208CFF\",
-              ylab = c(\"Thil_",param[i],"\", \"Pourcentage du total\"), 
-              xlab = c(\"Date\", \"répartition des valeurs\"), 
-              lwd=3,
-              cex=12
-  )")))
-}
-
-## Reserve
-
-n<- length(param)
-for (i in 1:n){
-  x11()
-  eval(parse(text=paste0("summaryPlot(reserve_2015_",param[i],"[,-c(2)],
-                         col.mis = \"gray\",
-                         col.trend =\"#0DB219\",
-                         col.data =\"#0DB219\",
-                         col.hist =\"#0DB219\",
-                         ylab = c(\"Reserve_",param[i],"\", \"Pourcentage du total\"), 
-                         xlab = c(\"Date\", \"répartition des valeurs\"), 
-                         lwd=3,
-                         cex=12
-                         )")))
-}
-
-
-
-
-##Cantinolle
-
-n<- length(param)
-for (i in 1:n){
-  x11()
-  eval(parse(text=paste0("summaryPlot(cantinolle_2015_",param[i],"[,-c(2)],
-                         col.mis = \"gray\",
-                         col.trend =\"#0DB219\",
-                         col.data =\"#0DB219\",
-                         col.hist =\"#0DB219\",
-                         ylab = c(\"Reserve_",param[i],"\", \"Pourcentage du total\"), 
-                         xlab = c(\"Date\", \"répartition des valeurs\"), 
-                         lwd=3,
-                         cex=12
-                         )")))
-}
-
-
-
-
-
-
+#
 #######################################################################################################################
 ################################################## synthèse hydrologique###############################################
     ### plus de sens si toutes les années sont aggrégées
 
 ## représentation de la pluvio sur la période considéré (calage sur le calendrier des sirene)
+
+## choix de la période de représention 
+
+# tout ce qui est disponibles
 n <- length(thil_vf$date)
 debut <-thil_vf$date[1]
 fin <-thil_vf$date[n]
 
+# fenetre temporelle définie
+debut <- as.POSIXct(strptime("01/08/2015 00:00:00",  format="%d/%m/%Y %H:%M",tz="GMT"))
+fin   <- as.POSIXct(strptime("01/12/2015 23:45:00",  format="%d/%m/%Y %H:%M",tz="GMT"))
+
+lims  <- c(debut, fin)
+
+
 P_pluie<- ggplot() +
   geom_bar(data=pluieEtDeversements, aes(date, Pluie), stat="identity", colour = "blue", fill="blue")+ 
+  xlab(NULL) + ylab("Pluviométrie")+
+  scale_y_reverse() +
+  scale_x_datetime( breaks=date_breaks("1 month"), labels=date_format("%b%y"), limits=lims) +
   theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
          panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"),
-         axis.text.x=element_blank())+
-  xlab(NULL) + ylab("Pluviométrie")+
-  xlim(c(debut, fin))+
-  scale_y_reverse() +
-  scale_x_datetime( breaks=date_breaks("1 month"), labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+         axis.text.x=element_blank(),
+         panel.grid.major = element_line(color = "gray91", size = 0.4),
+         panel.grid.major.y = element_blank())
 
-## représentation des déversement (empilé)
+## représentation des déversement aux DO (empilé)
 ##modification du format du tableaui
 meltdf <- melt(pluieEtDeversements[-c(2,3,4,11, 12,13, 15, 16)],id="date")
 P_dev <- ggplot(data = meltdf, aes(x = date, y = value, colour=variable, fill = variable)) + 
   geom_bar(stat='identity')+ 
-  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
-         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"))+
   xlab(NULL) + ylab("Déversements")+
-  theme(legend.title=element_blank(), 
-        legend.position = c(.95, .4),
-        axis.text.x=element_blank())+
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+  scale_x_datetime(  breaks=date_breaks("1 month"),labels=date_format("%b%y"),limits=lims) +
+  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
+         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"),
+         legend.title=element_blank(), 
+         legend.position = c(.95, .6),
+         axis.text.x=element_blank(),
+         panel.grid.major = element_line(color = "gray91", size = 0.4),
+         panel.grid.major.y = element_blank())
 
+
+## représentation des déversement à la STEP (by-pass + STEP)
 meltdf <- melt(pluieEtDeversements[c(1, 15)],id="date")
 #meltdf <- melt(pluieEtDeversements[c(1, 15, 16)],id="date")    # si on veut représenter le rejet de la STEP aussi
+
 P_STEP <- ggplot(data = meltdf, aes(x = date, y = value, colour=variable, fill = variable)) + 
   geom_bar(stat='identity')+ 
-  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
-         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"))+
   xlab(NULL) + ylab("By-pass STEP")+
-  theme(legend.title=element_blank(), 
-        legend.position = c(.9, .4))+
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+  scale_x_datetime(breaks=date_breaks("1 month"),labels=date_format("%b%y"),limits=lims) +
+  theme( plot.margin=unit(c(-0.5,1,1,1), "cm"),
+         panel.background = element_rect(fill = "white",colour = "white", linetype = "solid"),
+         legend.title=element_blank(), 
+         legend.position = c(.9, .4),
+         panel.grid.major = element_line(color = "gray91", size = 0.4),
+         panel.grid.major.y = element_blank(),
+         axis.text.x = element_text(size=14))
 
-x11()
-plot_grid(P_pluie, 
-          P_dev,
-          P_STEP,
-          nrow=3, align = "v")
+#x11()
+#plot_grid(P_pluie, 
+#          P_dev,
+#          P_STEP,
+#          nrow=3, align = "v")
 
 
 ## param physiques
@@ -538,46 +466,34 @@ plot_grid(P_pluie,
 ## conductivité
 ##timePlot(thil_vf, pollutant = "conductivite") ##moche
 
-thil_cond<- ggplot(thil_vf, 
-                    aes(x=date, y=conductivite)) +
-                    ylim(0, 750)+  
-                    geom_point(colour ="#208CFF",
-                               size = 1, alpha=0.5)     +
-  xlab(NULL) + ylab("Thil")+
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank(),
-        axis.text.x=element_blank())
+thil_cond<- ggplot(thil_vf,aes(x=date, y=conductivite)) +
+               geom_point(colour ="#208CFF",size = 1, alpha=0.5) +
+               ylim(0, 750)+  
+               xlab(NULL) + ylab("Thil")+
+               scale_x_datetime(breaks=date_breaks("1 month"),labels=date_format("%b%y"),limits=lims) +
+               theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                     panel.grid.major.y = element_blank(),
+                     axis.text.x=element_blank())
 
+cantinolle_cond<- ggplot(cantinolle_vf, aes(x=date, y=conductivite)) +
+                    geom_point(colour ="#048B9A",    size = 1, alpha =0.5)       +
+                    ylim(200, 750)+  
+                    xlab(NULL) + ylab("Cantinolle")+
+                    scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b%y"),limits=lims) +
+                    theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                          panel.grid.major.y = element_blank(),
+                          axis.title.x = element_blank(),
+                          axis.text.x=element_blank())
 
-
-
-
-cantinolle_cond<- ggplot(cantinolle_2015_vf, 
-                      aes(x=date, y=conductivite)) +
-                      ylim(200, 750)+  
-                      geom_point(colour ="#048B9A",
-                      size = 1, alpha =0.5)       +
-  xlab(NULL) + ylab("Cantinolle")+
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank(),
-        axis.title.x = element_blank(),
-        axis.text.x=element_blank())
-
-reserve_cond<- ggplot(reserve_vf, 
-                   aes(x=date, y=conductivite)) +
-                   ylim(0, 750)+  
-                   geom_point(colour ="#0DB219",
-                              size = 1, alpha =0.5)       +
-  xlab(NULL) + ylab("Reserve")+
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank(),
-        axis.title.x = element_blank())
+reserve_cond<- ggplot(reserve_vf, aes(x=date, y=conductivite)) +
+                 geom_point(colour ="#0DB219", size = 1, alpha =0.5)       +
+                 ylim(0, 750)+  
+                 xlab(NULL) + ylab("Reserve")+
+                 scale_x_datetime(breaks=date_breaks("1 month"),labels=date_format("%b%y"),limits=lims) +
+                 theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                       panel.grid.major.y = element_blank(),
+                       axis.title.x = element_blank(),
+                       axis.text.x = element_text(size=14))
 x11() 
 plot_grid(P_pluie, 
           P_dev,
@@ -594,6 +510,8 @@ smoothTrend(thil_vf, ### pas le plus pertinent pour ce paramètre (on veut montre
             pollutant = "conductivite",
             ylab = "conductivité",
             xlab = "",
+            auto.text = F,
+            par.settings=list(fontsize=list(text=16)),
             cols = "#208CFF",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -601,7 +519,7 @@ smoothTrend(thil_vf, ### pas le plus pertinent pour ce paramètre (on veut montre
             main = "")
 
 x11()
-smoothTrend(cantinolle_2015_vf, ### pas le plus pertinent pour ce paramètre (on veut montrer des variation brutales)
+smoothTrend(cantinolle_vf, ### pas le plus pertinent pour ce paramètre (on veut montrer des variation brutales)
             deseason =TRUE,
             pollutant = "conductivite",
             ylab = "conductivité",
@@ -609,6 +527,7 @@ smoothTrend(cantinolle_2015_vf, ### pas le plus pertinent pour ce paramètre (on 
             cols = "#048B9A",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
+            shade = "white", 
             date.breaks = 10,
             main = "")
 
@@ -619,6 +538,8 @@ smoothTrend(reserve_vf, ### pas le plus pertinent pour ce paramètre (on veut mon
             pollutant = "conductivite",
             ylab = "conductivité",
             xlab = "",
+            auto.text = F,
+            par.settings=list(fontsize=list(text=16)),
             cols = "#0DB219",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -633,10 +554,17 @@ timeVariation(thil_vf,
               normalise = F)
 
 x11()
+timeVariation(cantinolle_vf, 
+              pollutant = c("conductivite"),
+              cols =  "#048B9A",
+              normalise = F)
+
+x11()
 timeVariation(reserve_vf, 
               pollutant = c("conductivite"),
               cols =  "#0DB219",
               normalise = F)
+
 
 
 
@@ -646,25 +574,36 @@ timeVariation(reserve_vf,
 ### turbidité
 
 
-thil_turbi <- ggplot(thil_vf, 
-                aes(x=date, y=turbidite)) +
-                ylim(0, 500)+  
-                geom_point(colour ="#208CFF",
-                           size = 1, alpha= 0.5)   +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+thil_turbi <- ggplot(thil_vf, aes(x=date, y=turbidite)) +
+                geom_point(colour ="#208CFF", size = 1, alpha= 0.5)   +
+                ylim(0, 500)+
+                xlab(NULL) + ylab("Thil")+
+                scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                      panel.grid.major.y = element_blank(),
+                      axis.title.x = element_blank(),
+                      axis.text.x=element_blank())
 
-reserve_turbi <-ggplot(reserve_vf, 
-                 aes(x=date, y=turbidite)) +
-                 ylim(0, 500)+  
-                 geom_point(colour ="#0DB219",
-                              size = 1, alpha= 0.5)  +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+
+cantinolle_turbi <-ggplot(cantinolle_vf, aes(x=date, y=turbidite)) +
+                     geom_point(colour ="#048B9A", size = 1, alpha= 0.5)  +
+                     ylim(0, 500)+  
+                     xlab(NULL) + ylab("Cantinolle")+
+                     scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                     theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                           panel.grid.major.y = element_blank(),
+                           axis.title.x = element_blank(),
+                           axis.text.x=element_blank())
+
+reserve_turbi <-ggplot(reserve_vf, aes(x=date, y=turbidite)) +
+                geom_point(colour ="#0DB219", size = 1, alpha= 0.5)  +
+                ylim(0, 500)+
+                xlab(NULL) + ylab("Reserve")+
+                scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                      panel.grid.major.y = element_blank(),
+                      axis.title.x = element_blank(),
+                      axis.text.x = element_text(size=14))
 
 
 x11()
@@ -672,31 +611,73 @@ plot_grid(P_pluie,
           P_dev,
           P_STEP,
           thil_turbi,
+          cantinolle_turbi,
           reserve_turbi,
-          nrow=5, align = "v")
+          nrow=6, align = "v")
 
 ##smoothtrend et time variation n'ont pas bcp de sens pour la turbitdité
+x11()
+timeVariation(thil_vf, 
+              pollutant = c("turbidite"),
+              cols =  "#208CFF",
+              normalise = F)
+
+x11()
+timeVariation(cantinolle_vf, 
+              pollutant = c("turbidite"),
+              cols =  "#048B9A",
+              normalise = F)
+
+x11()
+timeVariation(reserve_vf, 
+              pollutant = c("turbidite"),
+              cols =  "#0DB219",
+              normalise = F)
+
+
+
 
 ## potentiel rédox
 
 
-thil_redox <- ggplot(thil_vf, 
-                 aes(x=date, y=redox)) +
-                 ylim(0, 600)+  
-                 geom_point(colour ="#208CFF",
-                            size = 1, alpha=0.5)      
-reserve_redox <- ggplot(reserve_vf, 
-                     aes(x=date, y=redox)) +
-                     ylim(0, 600)+  
-                     geom_point(colour ="#0DB219",
-                     size = 1, alpha=0.5)    
+thil_redox <- ggplot(thil_vf, aes(x=date, y=redox)) +
+                geom_point(colour ="#208CFF", size = 1, alpha=0.5)  +
+                ylim(0, 600)+  
+                xlab(NULL) + ylab("Thil")+
+                scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                      panel.grid.major.y = element_blank(),
+                      axis.title.x = element_blank(),
+                      axis.text.x=element_blank())
+
+cantinolle_redox <- ggplot(cantinolle_vf, aes(x=date, y=redox)) +
+                      geom_point(colour ="#048B9A",size = 1, alpha=0.5)   +
+                      ylim(0, 600)+
+                      xlab(NULL) + ylab("Cantinolle")+
+                      scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                      theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                            panel.grid.major.y = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.text.x=element_blank())
+
+reserve_redox <- ggplot(reserve_vf, aes(x=date, y=redox)) +
+                  geom_point(colour ="#0DB219",size = 1, alpha=0.5)   +
+                  ylim(0, 600)+ 
+                  xlab(NULL) + ylab("Reserve")+
+                  scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                        panel.grid.major.y = element_blank(),
+                        axis.title.x = element_blank(),
+                        axis.text.x = element_text(size=14))
+ 
 x11()
 plot_grid(P_pluie, 
           P_dev,
           P_STEP,
           thil_redox,
+          cantinolle_redox, 
           reserve_redox,
-          nrow=5, align = "v")
+          nrow=6, align = "v")
 
 x11()
 smoothTrend(thil_vf, 
@@ -704,6 +685,8 @@ smoothTrend(thil_vf,
             pollutant = "redox",
             ylab = "redox",
             xlab = "",
+            auto.text = F,
+            par.settings=list(fontsize=list(text=16)),
             cols = "#208CFF",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -716,6 +699,8 @@ smoothTrend(reserve_vf,
             pollutant = "redox",
             ylab = "redox",
             xlab = "",
+            auto.text = F,
+            par.settings=list(fontsize=list(text=16)),
             cols = "#0DB219",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -726,27 +711,35 @@ smoothTrend(reserve_vf,
 ### pH
 ##timePlot(thil_vf, pollutant = "turbidite") ##moche
 
-thil_pH <- ggplot(thil_vf, 
-                aes(x=date, y=pH)) +
-                ylim(6,9)+  
-                geom_point(colour ="#208CFF",alpha = 0.5,
-                size = 1)      +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+thil_pH <- ggplot(thil_vf, aes(x=date, y=pH)) +
+            geom_point(colour ="#208CFF",alpha = 0.5, size = 1)      +
+            ylim(6.5,9)+ 
+            xlab(NULL) + ylab("Thil")+
+            scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+            theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                  panel.grid.major.y = element_blank(),
+                  axis.title.x = element_blank(),
+                  axis.text.x=element_blank())
 
-    
+cantinolle_pH <- ggplot(cantinolle_vf, aes(x=date, y=pH)) +
+                  geom_point(colour ="#048B9A",alpha = 0.5, size = 1)      +
+                  ylim(6.5,8)+ 
+                  xlab(NULL) + ylab("Cantinolle")+
+                  scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                        panel.grid.major.y = element_blank(),
+                        axis.title.x = element_blank(),
+                        axis.text.x=element_blank())  
 
-reserve_pH <- ggplot(reserve_vf, 
-                  aes(x=date, y=pH)) +
-                  ylim(6, 9)+  
-                  geom_point(colour ="#0DB219",alpha = 0.5,
-                   size = 1)      +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+reserve_pH <- ggplot(reserve_vf, aes(x=date, y=pH)) +
+                  geom_point(colour ="#0DB219",alpha = 0.5, size = 1)      +  
+                  ylim(6,8)+  
+                  xlab(NULL) + ylab("Reserve")+
+                  scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                        panel.grid.major.y = element_blank(),
+                        axis.title.x = element_blank(),
+                        axis.text.x = element_text(size=14))
 
 
 x11()
@@ -754,8 +747,9 @@ plot_grid(P_pluie,
           P_dev,
           P_STEP,
           thil_pH,
+          cantinolle_pH,
           reserve_pH,
-          nrow=5, align = "v")
+          nrow=6, align = "v")
 
 
 x11()
@@ -765,6 +759,7 @@ smoothTrend(thil_vf,
             ylab = "pH",
             xlab = "",
             cols = "#208CFF",
+            par.settings=list(fontsize=list(text=16)),
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
             date.breaks = 20,
@@ -775,6 +770,7 @@ smoothTrend(reserve_vf,
             pollutant = "pH",
             ylab = "pH",
             xlab = "",
+            par.settings=list(fontsize=list(text=16)),
             cols = "#0DB219",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -788,6 +784,13 @@ timeVariation(thil_vf,
               pollutant = c("pH"),
               cols =  "#208CFF",
               normalise = F)
+
+x11()
+timeVariation(cantinolle_vf, 
+              pollutant = c("pH"),
+              cols =  "#048B9A",
+              normalise = F)
+
 x11()
 timeVariation(reserve_vf, 
               pollutant = c("pH"),
@@ -798,35 +801,41 @@ timeVariation(reserve_vf,
 #### oxygene
 
 
-thil_oxy <-ggplot(thil_vf, 
-       aes(x=date, y=oxygene)) +
-  #ylim(0, 500)+  
-  geom_point(colour ="#208CFF",alpha = 0.5,
-             size = 1)    +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+thil_oxy <-ggplot(thil_vf, aes(x=date, y=oxygene)) +
+            geom_point(colour ="#208CFF",alpha = 0.5, size = 1)    +
+            scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+            xlab(NULL) + ylab("Thil")+
+            theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                  panel.grid.major.y = element_blank(),
+                  axis.title.x = element_blank(),
+                  axis.text.x=element_blank())
 
+cantinolle_oxy <-ggplot(cantinolle_vf, aes(x=date, y=oxygene)) +
+                  geom_point(colour ="#048B9A",alpha = 0.5, size = 1)    +
+                  scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                  xlab(NULL) + ylab("Cantinolle")+
+                  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                        panel.grid.major.y = element_blank(),
+                        axis.title.x = element_blank(),
+                        axis.text.x=element_blank())
 
-
-reserve_oxy <-ggplot(reserve_vf, 
-                  aes(x=date, y=oxygene)) +
-                  #ylim(0, 500)+  
-                  geom_point(colour ="#0DB219",alpha = 0.5,
-                  size = 1)    +
-  scale_x_datetime( limits=c(debut, fin), 
-                    breaks=date_breaks("1 month"),labels=date_format("%b-%y")) +
-  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
-        panel.grid.major.y = element_blank())
+reserve_oxy <-ggplot(reserve_vf,  aes(x=date, y=oxygene)) +
+                  geom_point(colour ="#0DB219",alpha = 0.5, size = 1)    +
+                  scale_x_datetime( breaks=date_breaks("1 month"),labels=date_format("%b %y"),limits=lims) +
+                  xlab(NULL) + ylab("Reserve")+
+                  theme(panel.grid.major = element_line(color = "gray91", size = 0.4),
+                        panel.grid.major.y = element_blank(),
+                        axis.title.x = element_blank(),
+                        axis.text.x = element_text(size=14))
 
 x11()
 plot_grid(P_pluie, 
           P_dev,
           P_STEP,
           thil_oxy,
+          cantinolle_oxy ,
           reserve_oxy,
-          nrow=5, align = "v")
+          nrow=6, align = "v")
 
 
 
@@ -836,6 +845,7 @@ smoothTrend(thil_vf,
             pollutant = "oxygene",
             ylab = "oxygene",
             xlab = "",
+            par.settings=list(fontsize=list(text=16)),
             cols = "#208CFF",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -849,6 +859,7 @@ smoothTrend(reserve_vf,
             pollutant = "oxygene",
             ylab = "oxygene",
             xlab = "",
+            par.settings=list(fontsize=list(text=16)),
             cols = "#0DB219",
             ref.y = list(h = c(180, 120,60), lty = c(1,1,1), col = c("blue","green" ,"yellow")),
             ci = TRUE,
@@ -860,6 +871,13 @@ timeVariation(thil_vf,
               pollutant = c("oxygene"),
               cols =  "#208CFF",
               normalise = F)
+
+x11()
+timeVariation(cantinolle_vf, 
+              pollutant = c("oxygene"),
+              cols =  "#048B9A",
+              normalise = F)
+
 
 x11()
 timeVariation(reserve_vf, 
@@ -875,6 +893,12 @@ timeVariation(thil_vf,
 )
 
 
+x11()
+timeVariation(cantinolle_vf, 
+              pollutant = c("oxygene", "pH"),
+              normalise = T
+)
+
 
 x11()
 timeVariation(reserve_vf, 
@@ -885,7 +909,7 @@ timeVariation(reserve_vf,
 
 
 x11()
-scatterPlot(thil_vf, x = "temp_eau", y = "oxygene", z = "temp_air", 
+scatterPlot(thil_2014_vf, x = "temp_eau", y = "oxygene", z = "temp_air", 
             type = c("season"))
 
 x11()
@@ -894,22 +918,77 @@ scatterPlot(reserve_vf, x = "temp_eau", y = "oxygene", z = "temp_air",
 
 
 
-x11()
-trendLevel(thil_vf, y = "hour", pollutant = "oxygene")
+
+palette1 <- openColours(c("#FFDAB9", #peachpuff     8
+                         "#B0E0E6", #powderblue    9 
+                         "#87CEFF", # skyblue1     10
+                         ), 20)
+
 
 x11()
-trendLevel(reserve_vf, y = "hour", pollutant = "oxygene")
+trendLevel(thil_vf, y = "hour", pollutant = "oxygene",
+           par.settings=list(fontsize=list(text=18)),
+           cols = palette1 )
+
+palette2 <- openColours(c("#CD3700", #orangered3    4
+                          "#FFDAB9", #peachpuff     8
+                          "#B0E0E6", #powderblue    9 
+                          "#87CEFF", # skyblue1     10
+                          "#436EEE"  # royalblue2  >12
+), 20)
+x11()
+trendLevel(reserve_vf, y = "hour", pollutant = "oxygene",
+           par.settings=list(fontsize=list(text=18)),
+           cols = palette2 )
 
 
 
 #calendrar plot
+
+
+xx <- timeAverage(thil_2015_vf, avg.time = "day", data.thresh = 0, statistic = "percentile",
+            type = "default", percentile = 90, start.date = NA, end.date = NA,
+            interval = NA, vector.ws = FALSE, fill = FALSE)
+
 x11()
-calendarPlot(thil_2015_vf, 
+calendarPlot(xx, 
              pollutant = c("oxygene"), 
              year = 2015, 
-             cols = c("red", " orange", "blue"), 
-             statistic="mean", ###par défaut : moyenne, mais possibilité de changer
-             annotate="value",
-             breaks = c(0, 3, 5, 100),###valeurs indicatives, à modifie/argmenter
-             labels = c("Médiocre", "Moyen","Bon")
+             cols = c("red", "orange", "yellow", "green","blue"), 
+             statistic="max",
+             annotate="date",
+             par.settings=list(fontsize=list(text=18)),
+             breaks = c(0, 3, 4, 6, 8,100),###valeurs indicatives, à modifie/argmenter
+             labels = c("Mauvais", "Médiocre", "Moyen","Bon","Très bon"),
+             key.position  = "bottom"
 ) 
+
+
+x11()
+calendarPlot(xx, 
+             pollutant = c("oxygene"), 
+             year = 2015, 
+             cols = c("red", "orange", "yellow", "green","blue"), 
+             statistic="min",
+             annotate="date",
+             breaks = c(0, 3, 4, 6, 8,100),###valeurs indicatives, à modifie/argmenter
+             labels = c("Mauvais", "Médiocre", "Moyen","Bon","Très bon")
+) 
+
+calendarPlot(reserve_2015_vf, 
+             pollutant = c("oxygene"), 
+             year = 2015, month = 1:12,
+             type = "default", annotate = "value", statistic = "percentile",
+             cols = "heat", lim = NULL, 
+             col.lim = c("grey30", "black"), font.lim = c(1, 2), 
+             cex.lim = c(0.6, 1), digits = 0,
+             data.thresh = 0, labels = NA, breaks = NA, 
+             key.header = "", key.footer = "", key.position = "right",
+             key = TRUE, auto.text = TRUE)
+
+
+
+
+timeAverage(reserve_2015_vf, avg.time = "day", data.thresh = 0, statistic = "percentile",
+            type = "default", percentile = 90, start.date = NA, end.date = NA,
+            interval = NA, vector.ws = FALSE, fill = FALSE)
